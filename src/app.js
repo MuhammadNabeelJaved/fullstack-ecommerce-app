@@ -2,7 +2,7 @@ import dotenv, { parse } from "dotenv";
 import express from "express";
 import cors from "cors"
 import cookieParser from "cookie-parser"
-
+import userRoutes from "./routes/user.route.js"
 dotenv.config();
 const app = express()
 
@@ -18,5 +18,6 @@ app.use(express.json({
     limit: "15kb"
 }))
 
+app.use("/api/v1/users", userRoutes)
 
 export default app
