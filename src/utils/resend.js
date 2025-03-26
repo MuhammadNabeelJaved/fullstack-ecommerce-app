@@ -2,6 +2,15 @@ import { Resend } from "resend"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+const currentDateTime = new Date().toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short'
+})
+
 const sendEmail = async (email, subject, otp) => {
     try {
         const response = await resend.emails.send({
@@ -45,8 +54,7 @@ const sendEmail = async (email, subject, otp) => {
                 
                 <p style="color: #666; font-size: 12px; margin-top: 10px;">
                     Generated on: <span id="current-date-time">
-                        <!-- Current Date and Time will be dynamically inserted -->
-                        March 26, 2024 | 14:30 GMT
+                        ${currentDateTime}
                     </span>
                 </p>
             </td>
@@ -66,23 +74,6 @@ const sendEmail = async (email, subject, otp) => {
             </td>
         </tr>
     </table>
-
-    <script>
-        // This script would typically be handled server-side
-        function updateDateTime() {
-            const now = new Date();
-            const options = { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                timeZoneName: 'short'
-            };
-            document.getElementById('current-date-time').textContent = now.toLocaleString('en-US', options);
-        }
-        updateDateTime();
-    </script>
 </body>
 </html>
             `
