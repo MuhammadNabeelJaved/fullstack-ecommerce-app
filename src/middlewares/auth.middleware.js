@@ -5,13 +5,10 @@ import { ApiError } from "../utils/apiErrors.js"
 export const isAuthenticated = async (req, res, next) => {
     try {
         const { accessToken, refreshToken } = req.cookies || req.headers.authorization.split(" ")[1] || req.body.accessToken || req.body
-        console.log("accessToken", accessToken)
-        console.log("refreshToken", refreshToken)
         if (!accessToken && !refreshToken) {
             throw new ApiError(401, "Please login to access this page")
         }
         const decoded = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET)
-        console.log("decoded", decoded)
         if (!decoded) {
             throw new ApiError(401, "Invalid token")
         }

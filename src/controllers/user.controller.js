@@ -188,3 +188,30 @@ export const logout = asyncHandler(async (req, res) => {
     res.clearCookie("refreshToken")
     return apiResponse(res, { statusCode: 200, message: "User logged out successfully" })
 })
+
+export const getCurrentUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user?._id)
+    if (!user) {
+        throw new ApiError(400, "User not found")
+    }
+    return apiResponse(res, { statusCode: 200, data: user, message: "Current user fetched successfully" })
+})
+
+export const updateCurrentUser = asyncHandler(async (req, res) => {
+    const { name, password } = req.body
+
+    if (!name || !password) {
+        throw new ApiError(400, "Please provide all fields")
+    }
+
+    const user = await User.findById(req.user?._id)
+    if (!user) {
+        throw new ApiError(400, "User not found")
+    }
+
+    user.name = name
+    user.password = password
+    await user.save({ validateBeforeSave: false })
+
+    return apiResponse(res, { statusCode: 200, data: user, message: "User updated successfully" })
+})
