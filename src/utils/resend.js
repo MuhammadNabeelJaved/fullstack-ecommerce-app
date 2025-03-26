@@ -14,7 +14,7 @@ const currentDateTime = new Date().toLocaleString('en-US', {
 const sendEmail = async (email, subject, otp) => {
     try {
         const response = await resend.emails.send({
-            from: "noreply@resend.com",
+            from: "graphicsanimation786@gmail.com",
             to: email,
             subject: subject,
             html: `
