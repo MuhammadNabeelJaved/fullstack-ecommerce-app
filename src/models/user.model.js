@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-import IUser from "../types/user.d.ts"
 
-const userSchema = new mongoose.Schema < IUser > ({
+
+const userSchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true, "Name is required"],
