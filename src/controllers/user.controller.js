@@ -79,19 +79,9 @@ export const register = asyncHandler(async (req, res) => {
         email: user.email,
         avatar: user.avatar,
     }
-    const cookieOptions = {
-        httpOnly: true,
-        secure: true,
-        maxAge: 15 * 60 * 1000
-    }
 
-    return res
-        .cookie("accessToken", accessToken, cookieOptions)
-        .cookie("refreshToken", refreshToken, cookieOptions)
-        .status(200)
-        .json(
-            apiResponse(200, userData, "User registered successfully. Please check your email for verification code.")
-        );
+
+    return apiResponse(res, { statusCode: 200, data: userData, message: "User registered successfully. Please check your email for verification code." })
 })
 
 
