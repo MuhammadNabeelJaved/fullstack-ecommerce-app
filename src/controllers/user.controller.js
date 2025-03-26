@@ -24,63 +24,76 @@ const genrateAccessAndRefreshToken = async (userId) => {
 
 export const register = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body
-    const avatar = req.file ? req.file.path : null
+    const avatar = req.file?.path
 
-    try {
-        if (!name || !email || !password) {
-            throw new ApiError(400, "Please provide all fields your name, email and password")
-        }
+    if (!name || !email || !password) {
+        throw new ApiError(400, "Please provide all fields")
+    }
 
-        const existingUser = await User.findOne({
-            $or: [
-                { email },
-                { name }
-            ]
-        })
-        if (existingUser) {
-            throw new ApiError(400, "User already exists")
-        }
+    const existingUser = await User.findOne({
+        $or: [
+            { email },
+            { name }
+        ]
+    })
+    if (existingUser) {
+        throw new ApiError(400, "User already exists")
+    }
 
-        const uploadedImage = await Cloudinary(avatar)
-
+    let uploadedImage
+    if (avatar) {
+        uploadedImage = await Cloudinary(avatar)
         if (!uploadedImage) {
             throw new ApiError(500, "Server Error while uploading the avatar on cloudinary please try again later")
         }
-
-        const user = await User.create({ name, email, password, avatar: uploadedImage?.secure_url })
-
-        if (!user) {
-            throw new ApiError(500, "Server Error while registering the user please try again later")
-        }
-
-        const otp = await user.genrateVerificationCode()
-
-        const emailResponse = await sendEmail(email, "OTP Verification", otp)
-
-        if (!emailResponse) {
-            throw new ApiError(500, "Server Error while sending the email please try again later")
-        }
-
-        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id)
-
-        const userData = {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            avatar: user.avatar,
-        }
-        const cookieOptions = {
-            httpOnly: true,
-            secure: true,
-            maxAge: 15 * 60 * 1000
-        }
-        apiResponse(res, { statusCode: 200, data: userData, message: "User registered successfully" }).cookie("accessToken", accessToken, cookieOptions).cookie("refreshToken", refreshToken, cookieOptions)
-
-    } catch (error) {
-        throw new ApiError(500, error.message)
     }
 
+    const user = await User.create({
+        name,
+        email,
+        password,
+        avatar: uploadedImage?.secure_url || undefined
+    })
+
+    if (!user) {
+        throw new ApiError(500, "Server Error while registering the user please try again later")
+    }
+
+    const otp = await user.genrateVerificationCode()
+
+    try {
+        const emailResponse = await sendEmail(email, "OTP Verification", otp)
+        if (!emailResponse) {
+            console.log("Failed to send email, but continuing registration process")
+        }
+    } catch (error) {
+        console.log("Error sending email:", error.message)
+        // Continue with registration even if email fails
+    }
+
+    const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id)
+
+    const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+    }
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 15 * 60 * 1000
+    }
+
+    return res
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .status(200)
+        .json(
+            apiResponse(200, userData, "User registered successfully. Please check your email for verification code.")
+        );
 })
+
 
 export const verifyEmail = asyncHandler(async (req, res) => {
     const { email, code } = req.body
@@ -123,7 +136,6 @@ export const verifyEmail = asyncHandler(async (req, res) => {
         throw new ApiError(500, error.message)
     }
 })
-
 
 
 

@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-const userSchema = new mongoose.Schema({
+import IUser from "../types/user.d.ts"
+
+const userSchema = new mongoose.Schema < IUser > ({
     name: {
         type: String,
         required: [true, "Name is required"],
@@ -19,8 +21,9 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, "Password is required"],
         minlength: [8, "Password must be at least 8 characters long"],
-        maxlength: [32, "Password must be less than 32 characters long"],
+        // maxlength: [32, "Password must be less than 32 characters long"],
         trim: true,
+        select: false,
     },
     role: {
         type: String,
