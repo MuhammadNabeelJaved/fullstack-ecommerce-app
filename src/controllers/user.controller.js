@@ -61,6 +61,8 @@ export const register = asyncHandler(async (req, res) => {
 
     const otp = await user.genrateVerificationCode()
 
+    console.log("Generated OTP", otp)
+
     try {
         const emailResponse = await sendEmail(email, "OTP Verification", otp)
         if (!emailResponse) {
