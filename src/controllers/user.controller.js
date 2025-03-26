@@ -13,8 +13,8 @@ const genrateAccessAndRefreshToken = async (userId) => {
         if (!user) {
             throw new ApiError(400, "User not found ")
         }
-        const accessToken = user.genrateAccessToken()
-        const refreshToken = user.genrateRefreshToken()
+        const accessToken = await user.genrateAccessToken()
+        const refreshToken = await user.genrateRefreshToken()
         await user.save({ validateBeforeSave: false })
         return { accessToken, refreshToken }
     } catch (error) {
@@ -52,7 +52,8 @@ export const register = asyncHandler(async (req, res) => {
         name,
         email,
         password,
-        avatar: uploadedImage?.secure_url || undefined
+        avatar: uploadedImage?.secure_url || undefined,
+        isAccountVerified: false,
     })
 
     if (!user) {
@@ -73,7 +74,6 @@ export const register = asyncHandler(async (req, res) => {
         // Continue with registration even if email fails
     }
 
-    const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id)
 
     const userData = {
         _id: user._id,
@@ -105,30 +105,82 @@ export const verifyEmail = asyncHandler(async (req, res) => {
             throw new ApiError(400, "Invalid verification code")
         }
 
-        user.isVerified = true
+        user.isAccountVerified = true
         user.verificationCode = undefined
         user.verificationCodeExpires = undefined
         await user.save({ validateBeforeSave: false })
 
-        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id)
+        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
+
+        console.log("accessToken", accessToken)
+        console.log("refreshToken", refreshToken)
 
         const userData = {
             _id: user._id,
             name: user.name,
             email: user.email,
             avatar: user.avatar,
+            isAccountVerified: user.isAccountVerified,
         }
         const cookieOptions = {
             httpOnly: true,
             secure: true,
             maxAge: 15 * 60 * 1000
         }
-        apiResponse(res, { statusCode: 200, data: userData, message: "User verified successfully" }).cookie("accessToken", accessToken, cookieOptions).cookie("refreshToken", refreshToken, cookieOptions)
+
+        // Set cookies first, then send response to avoid "headers already sent" error
+        res.cookie("accessToken", accessToken, cookieOptions);
+        res.cookie("refreshToken", refreshToken, cookieOptions);
+
+        return apiResponse(res, { statusCode: 200, data: userData, message: "User verified successfully" });
     } catch (error) {
         throw new ApiError(500, error.message)
     }
 })
 
+
+export const login = asyncHandler(async (req, res) => {
+    const { email, password } = req.body
+
+    if (!email || !password) {
+        throw new ApiError(400, "Please provide all fields your email and password")
+    }
+
+    const user = await User.findOne({ email }).select("+password")
+    if (!user) {
+        throw new ApiError(400, "Invalid email or password")
+    }
+
+    const isPasswordCorrect = await user.isPasswordCorrect(password)
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Invalid password")
+    }
+
+    if (!user.isAccountVerified) {
+        throw new ApiError(400, "Please verify your email first")
+    }
+
+    const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
+
+    const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+    }
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 15 * 60 * 1000
+    }
+
+    res.cookie("accessToken", accessToken, cookieOptions)
+    res.cookie("refreshToken", refreshToken, cookieOptions)
+
+    return apiResponse(res, { statusCode: 200, data: userData, message: "User logged in successfully" })
+})
 
 
 
