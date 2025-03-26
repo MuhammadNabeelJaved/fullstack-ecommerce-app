@@ -182,13 +182,9 @@ export const login = asyncHandler(async (req, res) => {
     return apiResponse(res, { statusCode: 200, data: userData, message: "User logged in successfully" })
 })
 
-
-
-
-
-
-
-
-
-
-
+export const logout = asyncHandler(async (req, res) => {
+    await User.findByIdAndUpdate(req.user._id, { $set: { accessToken: null, refreshToken: null } }, { new: true })
+    res.clearCookie("accessToken")
+    res.clearCookie("refreshToken")
+    return apiResponse(res, { statusCode: 200, message: "User logged out successfully" })
+})
