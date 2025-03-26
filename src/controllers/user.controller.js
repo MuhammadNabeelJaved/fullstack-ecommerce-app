@@ -183,7 +183,12 @@ export const login = asyncHandler(async (req, res) => {
 })
 
 export const logout = asyncHandler(async (req, res) => {
-    await User.findByIdAndUpdate(req.user._id, { $set: { accessToken: null, refreshToken: null } }, { new: true })
+    await User.findByIdAndUpdate(req.user._id,
+        {
+            $set:
+                { accessToken: null, refreshToken: null }
+        },
+        { new: true })
     res.clearCookie("accessToken")
     res.clearCookie("refreshToken")
     return apiResponse(res, { statusCode: 200, message: "User logged out successfully" })
@@ -198,9 +203,9 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 })
 
 export const updateCurrentUser = asyncHandler(async (req, res) => {
-    const { name, password } = req.body
+    const { name, oldPassword, newPassword } = req.body
 
-    if (!name || !password) {
+    if (!name || !oldPassword || !newPassword) {
         throw new ApiError(400, "Please provide all fields")
     }
 
@@ -209,9 +214,18 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "User not found")
     }
 
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Invalid password")
+    }
+
+    // Update the name and password
     user.name = name
-    user.password = password
-    await user.save({ validateBeforeSave: false })
+    user.password = newPassword
+
+
+    // Save the user
+    await user.save()
 
     return apiResponse(res, { statusCode: 200, data: user, message: "User updated successfully" })
 })
