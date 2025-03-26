@@ -11,7 +11,7 @@ const genrateAccessAndRefreshToken = async (userId) => {
     try {
         const user = await User.findById(userId)
         if (!user) {
-            throw new ApiError(400, "User not found")
+            throw new ApiError(400, "User not found ")
         }
         const accessToken = user.genrateAccessToken()
         const refreshToken = user.genrateRefreshToken()
@@ -63,7 +63,18 @@ export const register = asyncHandler(async (req, res) => {
 
         const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id)
 
-        apiResponse(res, { statusCode: 200, data: { user, accessToken, refreshToken }, message: "User registered successfully" })
+        const userData = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+        }
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            maxAge: 15 * 60 * 1000
+        }
+        apiResponse(res, { statusCode: 200, data: userData, message: "User registered successfully" }).cookie("accessToken", accessToken, cookieOptions).cookie("refreshToken", refreshToken, cookieOptions)
 
     } catch (error) {
         throw new ApiError(500, error.message)
@@ -71,6 +82,47 @@ export const register = asyncHandler(async (req, res) => {
 
 })
 
+export const verifyEmail = asyncHandler(async (req, res) => {
+    const { email, code } = req.body
+
+    try {
+        if (!email || !code) {
+            throw new ApiError(400, "Please provide all fields your email and code")
+        }
+
+        const user = await User.findOne({ email })
+        if (!user) {
+            throw new ApiError(400, "User not found")
+        }
+
+        const isCodeCorrect = await user.isVerificationCodeCorrect(code)
+        if (!isCodeCorrect) {
+            throw new ApiError(400, "Invalid verification code")
+        }
+
+        user.isVerified = true
+        user.verificationCode = undefined
+        user.verificationCodeExpires = undefined
+        await user.save({ validateBeforeSave: false })
+
+        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id)
+
+        const userData = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+        }
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            maxAge: 15 * 60 * 1000
+        }
+        apiResponse(res, { statusCode: 200, data: userData, message: "User verified successfully" }).cookie("accessToken", accessToken, cookieOptions).cookie("refreshToken", refreshToken, cookieOptions)
+    } catch (error) {
+        throw new ApiError(500, error.message)
+    }
+})
 
 
 
