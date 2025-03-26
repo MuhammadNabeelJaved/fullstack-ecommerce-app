@@ -1,9 +1,15 @@
 import dotenv from "dotenv"
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
 dotenv.config()
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD
+    }
+})
 
 const currentDateTime = new Date().toLocaleString('en-US', {
     year: 'numeric',
@@ -13,6 +19,7 @@ const currentDateTime = new Date().toLocaleString('en-US', {
     minute: '2-digit',
     timeZoneName: 'short'
 })
+
 
 const sendEmail = async (email, subject, otp) => {
     try {

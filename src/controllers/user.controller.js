@@ -3,7 +3,7 @@ import { apiResponse } from "../utils/apiResponse.js"
 import { ApiError } from "../utils/apiErrors.js"
 import User from "../models/user.model.js"
 import Cloudinary from "../utils/Cloudinary.js"
-import sendEmail from "../utils/resend.js"
+import sendEmail from "../utils/sendEmail.js"
 
 
 
