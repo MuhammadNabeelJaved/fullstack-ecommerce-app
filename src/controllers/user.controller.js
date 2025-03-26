@@ -26,9 +26,18 @@ export const register = asyncHandler(async (req, res) => {
         }
 
         const uploadedImage = await Cloudinary(avatar)
-        avatar = uploadedImage
 
-        const user = await User.create({ name, email, password, avatar: avatar?.secure_url })
+        if (!uploadedImage) {
+            throw new ApiError(500, "Server Error while uploading the avatar on cloudinary please try again later")
+        }
+
+        const user = await User.create({ name, email, password, avatar: uploadedImage?.secure_url })
+
+        if (!user) {
+            throw new ApiError(500, "Server Error while registering the user please try again later")
+        }
+
+        
 
         apiResponse(res, { statusCode: 200, data: user, message: "User registered successfully" })
 
