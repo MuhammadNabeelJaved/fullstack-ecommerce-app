@@ -27,5 +27,26 @@ const uploadImage = async (image) => {
     }
 }
 
-export default uploadImage
+const deleteImage = async (imageUrl) => {
+    try {
+        if (!imageUrl) {
+            throw new ApiError(400, "Image URL is required")
+        }
+        const publicId = "avatars/" + imageUrl.split("/").pop().split(".")[0]
+        //avatars/ko4rumwqpcgvl4r8bri5
+        console.log("publicId", publicId)
+        const result = await cloudinary.v2.uploader.destroy(publicId)
+        if (!result) {
+            throw new ApiError(500, "Failed to delete image from Cloudinary")
+        }
+        if (result.result === "ok") {
+            return true
+        }
+        return false
+    } catch (error) {
+        throw new ApiError(500, "Failed to delete image from Cloudinary")
+    }
+}
+
+export default { uploadImage, deleteImage }
 

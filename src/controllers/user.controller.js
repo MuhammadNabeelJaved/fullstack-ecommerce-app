@@ -260,9 +260,13 @@ export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "User not found")
     }
     // delete the old avatar from cloudinary
-    await Cloudinary.deleteImage(user.avatar)
+    const isDeleted = await Cloudinary.deleteImage(user?.avatar)
+    console.log("isDeleted", isDeleted)
+    if (!isDeleted) {
+        throw new ApiError(500, "Server Error while deleting the avatar from cloudinary please try again later")
+    }
 
-    const uploadedImage = await Cloudinary(avatar)
+    const uploadedImage = await Cloudinary.uploadImage(avatar)
     if (!uploadedImage) {
         throw new ApiError(500, "Server Error while uploading the avatar on cloudinary please try again later")
     }
