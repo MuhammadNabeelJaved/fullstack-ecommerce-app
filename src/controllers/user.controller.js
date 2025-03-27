@@ -291,3 +291,28 @@ export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
     res.cookie("refreshToken", refreshToken, cookieOptions)
     return apiResponse(res, { statusCode: 200, data: userData, message: "User avatar updated successfully" })
 })
+
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+    try {
+        const user = await User.findById(req.user?._id)
+        if (!user) {
+            throw new ApiError(400, "User not found")
+        }
+        const { accessToken } = await genrateAccessAndRefreshToken(user?._id)
+        const userData = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+        }
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            maxAge: 15 * 60 * 1000
+        }
+        res.cookie("accessToken", accessToken, cookieOptions)
+        return apiResponse(res, { statusCode: 200, data: userData, message: "Access token refreshed successfully" })
+    } catch (error) {
+        throw new ApiError(500, error.message)
+    }
+})
