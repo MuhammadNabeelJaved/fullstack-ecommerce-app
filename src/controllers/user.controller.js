@@ -23,67 +23,71 @@ const genrateAccessAndRefreshToken = async (userId) => {
 }
 
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body
-    const avatar = req.file?.path
-
-    if (!name || !email || !password) {
-        throw new ApiError(400, "Please provide all fields")
-    }
-
-    const existingUser = await User.findOne({
-        $or: [
-            { email },
-            { name }
-        ]
-    })
-    if (existingUser) {
-        throw new ApiError(400, "User already exists")
-    }
-
-    let uploadedImage
-    if (avatar) {
-        uploadedImage = await Cloudinary(avatar)
-        if (!uploadedImage) {
-            throw new ApiError(500, "Server Error while uploading the avatar on cloudinary please try again later")
-        }
-    }
-
-    const user = await User.create({
-        name,
-        email,
-        password,
-        avatar: uploadedImage?.secure_url || undefined,
-        isAccountVerified: false,
-    })
-
-    if (!user) {
-        throw new ApiError(500, "Server Error while registering the user please try again later")
-    }
-
-    const otp = await user.genrateVerificationCode()
-
-    console.log("Generated OTP", otp)
-
     try {
-        const emailResponse = await sendEmail(email, "OTP Verification", otp)
-        if (!emailResponse) {
-            console.log("Failed to send email, but continuing registration process")
+        const { name, email, password } = req.body
+        const avatar = req.file?.path
+
+        if (!name || !email || !password) {
+            throw new ApiError(400, "Please provide all fields")
         }
+
+        const existingUser = await User.findOne({
+            $or: [
+                { email },
+                { name }
+            ]
+        })
+        if (existingUser) {
+            throw new ApiError(400, "User already exists")
+        }
+
+        let uploadedImage
+        if (avatar) {
+            uploadedImage = await Cloudinary(avatar)
+            if (!uploadedImage) {
+                throw new ApiError(500, "Server Error while uploading the avatar on cloudinary please try again later")
+            }
+        }
+
+        const user = await User.create({
+            name,
+            email,
+            password,
+            avatar: uploadedImage?.secure_url || undefined,
+            isAccountVerified: false,
+        })
+
+        if (!user) {
+            throw new ApiError(500, "Server Error while registering the user please try again later")
+        }
+
+        const otp = await user.genrateVerificationCode()
+
+        console.log("Generated OTP", otp)
+
+        try {
+            const emailResponse = await sendEmail(email, "OTP Verification", otp)
+            if (!emailResponse) {
+                console.log("Failed to send email, but continuing registration process")
+            }
+        } catch (error) {
+            console.log("Error sending email:", error.message)
+            // Continue with registration even if email fails
+        }
+
+
+        const userData = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+        }
+
+
+        return apiResponse(res, { statusCode: 200, data: userData, message: "User registered successfully. Please check your email for verification code." })
     } catch (error) {
-        console.log("Error sending email:", error.message)
-        // Continue with registration even if email fails
+        throw new ApiError(500, error.message)
     }
-
-
-    const userData = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-    }
-
-
-    return apiResponse(res, { statusCode: 200, data: userData, message: "User registered successfully. Please check your email for verification code." })
 })
 
 
@@ -140,92 +144,110 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 
 
 export const login = asyncHandler(async (req, res) => {
-    const { email, password } = req.body
+    try {
+        const { email, password } = req.body
 
-    if (!email || !password) {
-        throw new ApiError(400, "Please provide all fields your email and password")
+        if (!email || !password) {
+            throw new ApiError(400, "Please provide all fields your email and password")
+        }
+
+        const user = await User.findOne({ email }).select("+password")
+        if (!user) {
+            throw new ApiError(400, "Invalid email or password")
+        }
+
+        const isPasswordCorrect = await user.isPasswordCorrect(password)
+
+        if (!isPasswordCorrect) {
+            throw new ApiError(400, "Invalid password")
+        }
+
+        if (!user.isAccountVerified) {
+            throw new ApiError(400, "Please verify your email first")
+        }
+
+        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
+
+        const userData = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+        }
+
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            maxAge: 15 * 60 * 1000
+        }
+
+        res.cookie("accessToken", accessToken, cookieOptions)
+        res.cookie("refreshToken", refreshToken, cookieOptions)
+
+        return apiResponse(res, { statusCode: 200, data: userData, message: "User logged in successfully" })
+    } catch (error) {
+        throw new ApiError(500, error.message)
     }
-
-    const user = await User.findOne({ email }).select("+password")
-    if (!user) {
-        throw new ApiError(400, "Invalid email or password")
-    }
-
-    const isPasswordCorrect = await user.isPasswordCorrect(password)
-
-    if (!isPasswordCorrect) {
-        throw new ApiError(400, "Invalid password")
-    }
-
-    if (!user.isAccountVerified) {
-        throw new ApiError(400, "Please verify your email first")
-    }
-
-    const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
-
-    const userData = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-    }
-
-    const cookieOptions = {
-        httpOnly: true,
-        secure: true,
-        maxAge: 15 * 60 * 1000
-    }
-
-    res.cookie("accessToken", accessToken, cookieOptions)
-    res.cookie("refreshToken", refreshToken, cookieOptions)
-
-    return apiResponse(res, { statusCode: 200, data: userData, message: "User logged in successfully" })
 })
 
 export const logout = asyncHandler(async (req, res) => {
-    await User.findByIdAndUpdate(req.user._id,
-        {
-            $set:
-                { accessToken: null, refreshToken: null }
-        },
-        { new: true })
-    res.clearCookie("accessToken")
-    res.clearCookie("refreshToken")
-    return apiResponse(res, { statusCode: 200, message: "User logged out successfully" })
+    try {
+        await User.findByIdAndUpdate(req.user._id,
+            {
+                $set:
+                    { accessToken: null, refreshToken: null }
+            },
+            { new: true })
+        res.clearCookie("accessToken")
+        res.clearCookie("refreshToken")
+        return apiResponse(res, { statusCode: 200, message: "User logged out successfully" })
+    } catch (error) {
+        throw new ApiError(500, error.message)
+    }
 })
 
 export const getCurrentUser = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user?._id)
-    if (!user) {
-        throw new ApiError(400, "User not found")
+    try {
+        const user = await User.findById(req.user?._id)
+        if (!user) {
+            throw new ApiError(400, "User not found")
+        }
+        return apiResponse(res, { statusCode: 200, data: user, message: "Current user fetched successfully" })
+    } catch (error) {
+
+        throw new ApiError(500, error.message)
     }
-    return apiResponse(res, { statusCode: 200, data: user, message: "Current user fetched successfully" })
 })
 
 export const updateCurrentUserPassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newPassword } = req.body
+    try {
+        const { oldPassword, newPassword } = req.body
 
-    if (!oldPassword || !newPassword) {
-        throw new ApiError(400, "Please provide all fields")
+        if (!oldPassword || !newPassword) {
+            throw new ApiError(400, "Please provide all fields")
+        }
+
+        const user = await User.findById(req.user?._id).select("+password")
+        if (!user) {
+            throw new ApiError(400, "User not found")
+        }
+
+        const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+        console.log("isPasswordCorrect", isPasswordCorrect)
+        if (!isPasswordCorrect) {
+            throw new ApiError(400, "Invalid password")
+        }
+
+        // Update the password
+        user.password = newPassword
+
+        // Save the user
+        await user.save({ validateBeforeSave: false })
+
+        return apiResponse(res, { statusCode: 200, data: user, message: "User updated successfully" })
+    } catch (error) {
+        throw new ApiError(500, error.message)
     }
-
-    const user = await User.findById(req.user?._id)
-    if (!user) {
-        throw new ApiError(400, "User not found")
-    }
-
-    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
-    if (!isPasswordCorrect) {
-        throw new ApiError(400, "Invalid password")
-    }
-
-    // Update the password
-    user.password = newPassword
-
-    // Save the user
-    await user.save({ validateBeforeSave: false })
-
-    return apiResponse(res, { statusCode: 200, data: user, message: "User updated successfully" })
 })
 
 export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {

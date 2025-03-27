@@ -71,7 +71,23 @@ userSchema.methods.genrateVerificationCode = async function () {
     return code
 }
 userSchema.methods.isPasswordCorrect = async function (password) {
-    return await bcrypt.compare(password, this.password)
+    // Check if password is provided
+    if (!password) {
+        throw new Error('Password is required');
+    }
+
+    // Check if this.password exists
+    if (!this.password) {
+        throw new Error('Stored password is missing');
+    }
+
+    try {
+        return await bcrypt.compare(password, this.password);
+    } catch (error) {
+        console.error('Password comparison error:', error);
+        // Rethrow with more specific message to help debugging
+        throw new Error(`Password comparison failed: ${error.message}`);
+    }
 }
 
 userSchema.methods.isVerificationCodeCorrect = async function (code) {
