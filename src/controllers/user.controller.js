@@ -202,10 +202,10 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
     return apiResponse(res, { statusCode: 200, data: user, message: "Current user fetched successfully" })
 })
 
-export const updateCurrentUser = asyncHandler(async (req, res) => {
-    const { name, oldPassword, newPassword } = req.body
+export const updateCurrentUserPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body
 
-    if (!name || !oldPassword || !newPassword) {
+    if (!oldPassword || !newPassword) {
         throw new ApiError(400, "Please provide all fields")
     }
 
@@ -219,13 +219,49 @@ export const updateCurrentUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid password")
     }
 
-    // Update the name and password
-    user.name = name
+    // Update the password
     user.password = newPassword
 
-
     // Save the user
-    await user.save()
+    await user.save({ validateBeforeSave: false })
 
     return apiResponse(res, { statusCode: 200, data: user, message: "User updated successfully" })
+})
+
+export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
+    const avatar = req.file?.path
+    if (!avatar) {
+        throw new ApiError(400, "Please provide all fields")
+    }
+    const user = await User.findById(req.user?._id)
+    if (!user) {
+        throw new ApiError(400, "User not found")
+    }
+    // delete the old avatar from cloudinary
+    await Cloudinary.deleteImage(user.avatar)
+
+    const uploadedImage = await Cloudinary(avatar)
+    if (!uploadedImage) {
+        throw new ApiError(500, "Server Error while uploading the avatar on cloudinary please try again later")
+    }
+
+    user.avatar = uploadedImage?.secure_url
+
+    await user.save({ validateBeforeSave: false })
+
+    const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
+    const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+    }
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 15 * 60 * 1000
+    }
+    res.cookie("accessToken", accessToken, cookieOptions)
+    res.cookie("refreshToken", refreshToken, cookieOptions)
+    return apiResponse(res, { statusCode: 200, data: userData, message: "User avatar updated successfully" })
 })
