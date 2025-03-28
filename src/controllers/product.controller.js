@@ -115,6 +115,26 @@ export const updateProduct = asyncHandler(async (req, res) => {
 })
 
 
+// delete product
+
+export const deleteProduct = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await Product.findById(id);
+
+        if (!product) {
+            throw new ApiError("Product not found", 404);
+        }
+
+        await product.deleteOne();
+
+        return new ApiResponse(res, { statusCode: 200, message: "Product deleted successfully" });
+
+    } catch (error) {
+        throw new ApiError(error.message, 500);
+    }
+})
+
 // Get product by id
 
 // export const getProductById = asyncHandler(async (req, res) => {
