@@ -1,6 +1,6 @@
 import Product from "../models/product.model.js";
-import ApiError from "../utils/ApiError.js";
-import ApiResponse from "../utils/ApiResponse.js";
+import {ApiError} from "../utils/apiErrors.js";
+import {apiResponse} from "../utils/apiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import Cloudinary from "../utils/Cloudinary.js";
 
