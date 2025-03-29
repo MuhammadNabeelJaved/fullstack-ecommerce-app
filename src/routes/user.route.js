@@ -9,7 +9,7 @@ router.route("/verify-email").post(verifyEmail)
 router.route("/login").post(login)
 router.route("/logout").post(isAuthenticated, logout)
 router.route("/current-user").get(isAuthenticated, getCurrentUser)
-router.route("/update-current-user").put(isAuthenticated, updateCurrentUserPassword)
+router.route("/update-current-user-password").put(isAuthenticated, updateCurrentUserPassword)
 router.route("/update-current-user-avatar").put(isAuthenticated, upload.single("avatar"), updateCurrentUserAvatar)
 router.route("/refresh-access-token").post(isAuthenticated, refreshAccessToken)
 

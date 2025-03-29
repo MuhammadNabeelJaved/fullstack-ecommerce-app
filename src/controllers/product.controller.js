@@ -1,6 +1,6 @@
 import Product from "../models/product.model.js";
-import {ApiError} from "../utils/apiErrors.js";
-import {apiResponse} from "../utils/apiResponse.js";
+import { ApiError } from "../utils/apiErrors.js";
+import { apiResponse } from "../utils/apiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import Cloudinary from "../utils/Cloudinary.js";
 
@@ -10,9 +10,12 @@ import Cloudinary from "../utils/Cloudinary.js";
 export const createProduct = asyncHandler(async (req, res) => {
     try {
         const { name, description, price, category, stock } = req.body;
-        const images = req.files.map(file => file.path);
+        // const images = req.files.map(file => file.path);
+        const image = req.file.path;
 
-        if (!images || images.length === 0) {
+        console.log("image", image);
+
+        if (!image) {
             throw new ApiError("At least one image is required", 400);
         }
 
@@ -29,11 +32,11 @@ export const createProduct = asyncHandler(async (req, res) => {
             throw new ApiError("Invalid category", 400);
         }
 
-        const uploadedImages = await Promise.all(images.map(async (image) => {
-            const result = await Cloudinary.uploadImage(image);
-            return result.secure_url;
-        }));
+        const uploadedImages = await Cloudinary.uploadImage(image);
 
+        if (!uploadedImages) {
+            throw new ApiError("Failed to upload images to cloudinary", 500);
+        }
 
 
         const productData = {
@@ -51,7 +54,7 @@ export const createProduct = asyncHandler(async (req, res) => {
             throw new ApiError("Failed to create product", 500);
         }
 
-        return new ApiResponse(res, { statusCode: 201, message: "Product created successfully", data: product });
+        return new apiResponse(res, { statusCode: 201, message: "Product created successfully", data: product });
     } catch (error) {
         throw new ApiError(error.message, 500);
     }
@@ -68,7 +71,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
             throw new ApiError("No products found", 404);
         }
 
-        return new ApiResponse(res, { statusCode: 200, message: "Products fetched successfully", data: products });
+        return new apiResponse(res, { statusCode: 200, message: "Products fetched successfully", data: products });
     } catch (error) {
         throw new ApiError(error.message, 500);
     }
@@ -107,7 +110,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
         await product.save();
 
-        return new ApiResponse(res, { statusCode: 200, message: "Product updated successfully", data: product });
+        return new apiResponse(res, { statusCode: 200, message: "Product updated successfully", data: product });
 
     } catch (error) {
         throw new ApiError(error.message, 500);
@@ -128,7 +131,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
         await product.deleteOne();
 
-        return new ApiResponse(res, { statusCode: 200, message: "Product deleted successfully" });
+        return new apiResponse(res, { statusCode: 200, message: "Product deleted successfully" });
 
     } catch (error) {
         throw new ApiError(error.message, 500);
