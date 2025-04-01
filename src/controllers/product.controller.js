@@ -159,6 +159,11 @@ export const deleteProduct = asyncHandler(async (req, res) => {
             throw new ApiError("Product not found", 404);
         }
 
+        const deletedImages = await Cloudinary.deleteImage(product.images);
+        if (!deletedImages) {
+            throw new ApiError("Failed to delete images from cloudinary", 500);
+        }
+
         await product.deleteOne();
 
         return apiResponse(res, { statusCode: 200, message: "Product deleted successfully" });
