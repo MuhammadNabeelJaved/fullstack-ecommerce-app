@@ -6,7 +6,7 @@ const router = Router();
 
 router.route("/create-product").post(isAuthenticated, upload.single("image"), createProduct);
 router.route("/").get(getAllProducts);
-router.route("/:id").put(isAuthenticated, updateProduct);
+router.route("/:id").put(isAuthenticated, upload.single("image"), updateProduct);
 router.route("/:id").delete(isAuthenticated, deleteProduct);
 router.route("/:id").get(isAuthenticated, getProductById);
 
