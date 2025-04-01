@@ -55,7 +55,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 
         return apiResponse(res, { statusCode: 201, message: "Product created successfully", data: product });
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
@@ -72,7 +72,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
         return apiResponse(res, { statusCode: 200, message: "Products fetched successfully", data: products });
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
@@ -143,7 +143,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
             data: updatedProduct
         });
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
@@ -164,15 +164,19 @@ export const deleteProduct = asyncHandler(async (req, res) => {
         return apiResponse(res, { statusCode: 200, message: "Product deleted successfully" });
 
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
 // Get product by id
 
 export const getProductById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
     try {
-        const { id } = req.params;
+
+        if (!id) {
+            throw new ApiError("Product id is required", 400);
+        }
 
         const product = await Product.findById(id);
 
@@ -183,7 +187,7 @@ export const getProductById = asyncHandler(async (req, res) => {
         return apiResponse(res, { statusCode: 200, message: "Product fetched successfully", data: product });
 
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
