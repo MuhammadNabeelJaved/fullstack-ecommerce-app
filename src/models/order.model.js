@@ -10,26 +10,18 @@ const orderSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product',
         required: true,
-        quantity: {
-            type: Number,
-            required: true,
-            min: 0
-        },
-        price: {
-            type: Number,
-            required: true,
-            min: 0
-        },
-        totalPrice: {
-            type: Number,
-            required: true,
-            min: 0
-        }
     }],
     totalPrice: {
         type: Number,
         required: true,
-        min: 0
+        min: 0,
+        default: 0
+    },
+    totalQuantity: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0
     },
     status: {
         type: String,
@@ -55,10 +47,6 @@ const orderSchema = new Schema({
         required: true,
         enum: ["pending", "shipped", "delivered", "cancelled"]
     },
-    orderDate: {
-        type: Date,
-        required: true
-    },
     orderNumber: {
         type: String,
         required: true
@@ -70,6 +58,22 @@ const orderSchema = new Schema({
     },
 
 }, { timestamps: true })
+
+
+orderSchema.methods.genrateOrderNumber = function () {
+    const prefix = "ORD"
+    const randomNumber = Math.floor(100000 + Math.random() * 900000)
+
+    const orderNumber = `${prefix}-${randomNumber}`
+
+    if (this.isModified("orderNumber")) {
+        return orderNumber
+    }
+    this.orderNumber = orderNumber
+    return orderNumber
+}
+
+
 
 const Order = model("Order", orderSchema)
 export default Order
