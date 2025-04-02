@@ -4,6 +4,7 @@ import { ApiError } from "../utils/apiErrors.js";
 import Product from "../models/product.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import CartProduct from "../models/cartProduct.model.js";
+import mongoose from "mongoose";
 
 
 // Add product to cart
@@ -200,7 +201,20 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
     try {
         const { itemId, quantity } = req.body;
 
+        console.log("Item Id", itemId);
+        console.log("Quantity", quantity);
+
         const user = req.user;
+
+        if (!itemId || !quantity) {
+            throw new ApiError(400, "Item id and quantity are required");
+        }
+        if (quantity <= 0) {
+            throw new ApiError(400, "Quantity must be greater than 0");
+        }
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
 
         const cart = await Cart.findOne({ user: user._id });
 
@@ -208,22 +222,30 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
             throw new ApiError(404, "Cart not found");
         }
 
-        const item = cart.products.find(item => item._id.toString() === itemId);
+        const itemExists = await CartProduct.findById(itemId);
 
-        if (!item) {
-            throw new ApiError(404, "Item not found");
+        if (!itemExists) {
+            throw new ApiError(404, "Cart product not found");
         }
 
-        item.quantity = quantity;
-        item.totalPrice = item.price * quantity;
+        const updatedItem = await CartProduct.findByIdAndUpdate(
+            itemId, 
+            { 
+                quantity,
+                itemTotalPrice: itemExists.price * quantity 
+            }, 
+            { new: true }
+        );
 
-        cart.totalPrice = cart.products.reduce((total, item) => total + item.totalPrice, 0);
+        console.log("Updated Item", updatedItem);
 
-        await cart.save();
+        if (!updatedItem) {
+            throw new ApiError(404, "Item not found");
+        }
+        
+        const newTotalPrice = await recalculateCartTotal(cart?._id);
 
-        return apiResponse(res, { statusCode: 200, message: "Cart item quantity updated", data: cart });
-
-
+        return apiResponse(res, { statusCode: 200, message: "Cart item quantity updated", data: updatedItem });
 
     } catch (error) {
         throw new ApiError(500, error.message)
@@ -235,9 +257,19 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
 
 export const removeCartItem = asyncHandler(async (req, res) => {
     try {
-        const { itemId } = req.params;
+        const { itemId } = req.params || req.body;
 
         const user = req.user;
+
+        console.log("Item Id", itemId);
+
+        if (!itemId) {
+            throw new ApiError(400, "Item id is required");
+        }
+
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
 
         const cart = await Cart.findOne({ user: user._id });
 
@@ -245,19 +277,22 @@ export const removeCartItem = asyncHandler(async (req, res) => {
             throw new ApiError(404, "Cart not found");
         }
 
-        const item = cart.products.id(itemId);
+        const itemExists = await CartProduct.findById(itemId);
 
-        if (!item) {
-            throw new ApiError(404, "Item not found");
+        if (!itemExists) {
+            throw new ApiError(404, "Cart product not found");
         }
 
-        cart.products = cart.products.filter(item => item.id !== itemId);
+        const cartProduct = await CartProduct.findByIdAndDelete(itemId);
 
-        cart.totalPrice = cart.products.reduce((total, item) => total + item.totalPrice, 0);
 
-        await cart.save();
+        if (!cartProduct) {
+            throw new ApiError(404, "Cart item not found");
+        }
+        await Cart.findByIdAndUpdate(cart?._id, { $pull: { products: itemId } });
+        const newTotalPrice = await recalculateCartTotal(cart?._id);
 
-        return apiResponse(res, { statusCode: 200, message: "Cart item removed", data: cart });
+        return apiResponse(res, { statusCode: 200, message: "Cart item removed", data: cartProduct });
 
     } catch (error) {
         throw new ApiError(500, error.message)
