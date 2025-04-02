@@ -7,7 +7,7 @@ const router = Router();
 
 router.route("/add-to-cart").post(isAuthenticated, upload.single("image"), addToCart);
 router.route("/cart-items").get(isAuthenticated, getCartItems);
-router.route("/update-cart-item-quantity").put(isAuthenticated, updateCartItemQuantity);
+router.route("/update-cart-item-quantity").put(isAuthenticated, upload.single("image"), updateCartItemQuantity);
 router.route("/remove-cart-item/:itemId").delete(isAuthenticated, removeCartItem);
 router.route("/clear-cart").delete(isAuthenticated, clearCart);
 router.route("/cart-total-price").get(isAuthenticated, getCartTotalPrice);

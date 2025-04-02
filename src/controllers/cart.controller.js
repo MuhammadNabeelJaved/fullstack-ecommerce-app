@@ -19,7 +19,7 @@ export const addToCart = asyncHandler(async (req, res) => {
         const { productId } = req.body;
         const quantity = parseInt(req.body.quantity, 10);
         const user = req.user;
-    
+
         // --- Basic Validations ---
         if (!productId || isNaN(quantity)) {
             throw new ApiError(400, "Product ID and a valid quantity are required");
@@ -30,7 +30,7 @@ export const addToCart = asyncHandler(async (req, res) => {
         if (!user || !user._id) {
             throw new ApiError(401, "User not authenticated or user data incomplete");
         }
-    
+
         // --- Find Product ---
         const product = await Product.findById(productId);
         if (!product) {
@@ -39,7 +39,7 @@ export const addToCart = asyncHandler(async (req, res) => {
         if (product.price === undefined || product.price === null || product.price < 0) {
             throw new ApiError(500, "Product data is incomplete or invalid (price missing).");
         }
-    
+
         // --- Find or Create User's Cart ---
         // Use findOneAndUpdate with upsert: true for atomicity in finding/creating the cart
         let cart = await Cart.findOneAndUpdate(
@@ -47,11 +47,11 @@ export const addToCart = asyncHandler(async (req, res) => {
             { $setOnInsert: { user: user._id, products: [], totalPrice: 0 } }, // Set these fields only if inserting (creating)
             { new: true, upsert: true } // Return the new/updated doc, create if doesn't exist
         );
-    
+
         // --- Find Existing CartProduct or Create New ---
         let cartProduct = await CartProduct.findOne({ cart: cart._id, product: productId });
         let isNewItem = false;
-    
+
         if (cartProduct) {
             // Item exists, update quantity and total
             cartProduct.quantity += quantity;
@@ -68,38 +68,38 @@ export const addToCart = asyncHandler(async (req, res) => {
             });
             isNewItem = true;
         }
-    
+
         // --- Update Cart Document ---
         // If it was a new item, add its reference to the cart's products array
         if (isNewItem) {
             // Use $addToSet to avoid duplicate references if something went wrong
             await Cart.updateOne(
-                 { _id: cart._id },
-                 { $addToSet: { products: cartProduct._id } }
+                { _id: cart._id },
+                { $addToSet: { products: cartProduct._id } }
             );
         }
-      
-    
+
+
         // Recalculate the total price for the entire cart
         const newTotalPrice = await recalculateCartTotal(cart._id); // Use the helper function
-    
+
         // --- Fetch Updated Cart with Populated Data for Response ---
         // It's often better to fetch the final state rather than modifying the 'cart' variable in memory
         const finalCart = await Cart.findById(cart._id).populate({
             path: 'products',
             populate: { // Optionally populate the product details within CartProduct
-               path: 'product',
-               select: 'name price /* other fields you need */' // Select specific product fields
+                path: 'product',
+                select: 'name price /* other fields you need */' // Select specific product fields
             }
         });
-    
+
         if (!finalCart) {
             // This shouldn't happen if cart creation/finding worked, but safety check
             throw new ApiError(500, "Failed to retrieve updated cart details.");
         }
-    
+
         // The finalCart.totalPrice should already be updated by recalculateCartTotal
-    
+
         return apiResponse(res, {
             statusCode: 200,
             message: "Product added to cart successfully",
@@ -184,7 +184,7 @@ export const getCartItems = asyncHandler(async (req, res) => {
         const cart = await Cart.findOne({ user: user._id });
 
         if (!cart) {
-            throw new ApiError("Cart not found", 404);
+            throw new ApiError(404, "Cart not found");
         }
 
         return apiResponse(res, { statusCode: 200, message: "Cart items fetched", data: cart });
@@ -205,13 +205,13 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
         const cart = await Cart.findOne({ user: user._id });
 
         if (!cart) {
-            throw new ApiError("Cart not found", 404);
+            throw new ApiError(404, "Cart not found");
         }
 
-        const item = cart.products.id(itemId);
+        const item = cart.products.find(item => item._id.toString() === itemId);
 
         if (!item) {
-            throw new ApiError("Item not found", 404);
+            throw new ApiError(404, "Item not found");
         }
 
         item.quantity = quantity;
@@ -221,12 +221,12 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
 
         await cart.save();
 
-        return new ApiResponse(res, { statusCode: 200, message: "Cart item quantity updated", data: cart });
+        return apiResponse(res, { statusCode: 200, message: "Cart item quantity updated", data: cart });
 
 
 
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
@@ -242,13 +242,13 @@ export const removeCartItem = asyncHandler(async (req, res) => {
         const cart = await Cart.findOne({ user: user._id });
 
         if (!cart) {
-            throw new ApiError("Cart not found", 404);
+            throw new ApiError(404, "Cart not found");
         }
 
         const item = cart.products.id(itemId);
 
         if (!item) {
-            throw new ApiError("Item not found", 404);
+            throw new ApiError(404, "Item not found");
         }
 
         cart.products = cart.products.filter(item => item.id !== itemId);
@@ -257,10 +257,10 @@ export const removeCartItem = asyncHandler(async (req, res) => {
 
         await cart.save();
 
-        return new ApiResponse(res, { statusCode: 200, message: "Cart item removed", data: cart });
+        return apiResponse(res, { statusCode: 200, message: "Cart item removed", data: cart });
 
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
@@ -274,7 +274,7 @@ export const clearCart = asyncHandler(async (req, res) => {
         const cart = await Cart.findOne({ user: user._id });
 
         if (!cart) {
-            throw new ApiError("Cart not found", 404);
+            throw new ApiError(404, "Cart not found");
         }
 
         cart.products = [];
@@ -283,9 +283,9 @@ export const clearCart = asyncHandler(async (req, res) => {
 
         await cart.save();
 
-        return new ApiResponse(res, { statusCode: 200, message: "Cart cleared", data: cart });
+        return apiResponse(res, { statusCode: 200, message: "Cart cleared", data: cart });
     } catch (error) {
-        throw new ApiError(error.message, 500);
+        throw new ApiError(500, error.message)
     }
 })
 
@@ -299,7 +299,7 @@ export const getCartTotalPrice = asyncHandler(async (req, res) => {
         const cart = await Cart.findOne({ user: user._id });
 
         if (!cart) {
-            throw new ApiError("Cart not found", 404);
+            throw new ApiError(404, "Cart not found");
         }
 
         return apiResponse(res, { statusCode: 200, message: "Cart total price fetched", data: cart.totalPrice });
