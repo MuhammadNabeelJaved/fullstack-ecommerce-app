@@ -4,6 +4,7 @@ import { ApiError } from "../utils/apiErrors.js"
 import User from "../models/user.model.js"
 import Cloudinary from "../utils/Cloudinary.js"
 import sendEmail from "../utils/sendEmail.js"
+import jwt from "jsonwebtoken"
 
 
 
@@ -191,7 +192,7 @@ export const login = asyncHandler(async (req, res) => {
         res.cookie("accessToken", accessToken, cookieOptions)
         res.cookie("refreshToken", refreshToken, cookieOptions)
 
-        return apiResponse(res, { statusCode: 200, data: {userData, accessToken, refreshToken}, message: "User logged in successfully" })
+        return apiResponse(res, { statusCode: 200, data: { userData, accessToken, refreshToken }, message: "User logged in successfully" })
     } catch (error) {
         throw new ApiError(500, error.message)
     }
@@ -300,11 +301,27 @@ export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
 })
 
 export const refreshAccessToken = asyncHandler(async (req, res) => {
+    const incommingRefreshToken = req.cookies?.refreshToken || req.headers?.authorization?.split(" ")[1]
     try {
-        const user = await User.findById(req.user?._id)
+
+        if (!incommingRefreshToken) {
+            throw new ApiError(400, "Please provide refresh token")
+        }
+
+        const decodedToken = await jwt.verify(incommingRefreshToken, process.env.JWT_REFRESH_SECRE)
+        if (!decodedToken) {
+            throw new ApiError(400, "Invalid refresh token")
+        }
+        const user = await User.findById(decodedToken?._id)
         if (!user) {
             throw new ApiError(400, "User not found")
         }
+
+        if (user.refreshToken !== incommingRefreshToken) {
+            throw new ApiError(401, "Refresh token is expired or used");
+        }
+
+
         const { accessToken } = await genrateAccessAndRefreshToken(user?._id)
         const userData = {
             _id: user._id,
