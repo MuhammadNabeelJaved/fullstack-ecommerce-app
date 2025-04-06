@@ -329,7 +329,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
             throw new ApiError(401, "Refresh token is expired or used");
         }
 
-        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id);
+        const { accessToken, refreshToken: newRefreshToken } = await genrateAccessAndRefreshToken(user?._id);
         const userData = {
             _id: user._id,
             name: user.name,
@@ -343,7 +343,12 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
         };
         res.cookie("accessToken", accessToken, cookieOptions);
         res.cookie("refreshToken", refreshToken, cookieOptions);
-        return apiResponse(res, { statusCode: 200, data: {userData, accessToken, refreshToken}, message: "Access token refreshed successfully" });
+        return apiResponse(res, {
+            statusCode: 200, data: {
+                userData, accessToken,
+                refreshToken,
+            }, message: "Access token refreshed successfully"
+        });
     } catch (error) {
         throw new ApiError(500, error.message);
     }
