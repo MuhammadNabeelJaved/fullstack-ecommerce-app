@@ -1,3 +1,4 @@
+import dotenv from "dotenv"
 import asyncHandler from "../utils/asyncHandler.js"
 import { apiResponse } from "../utils/apiResponse.js"
 import { ApiError } from "../utils/apiErrors.js"
@@ -6,6 +7,7 @@ import Cloudinary from "../utils/Cloudinary.js"
 import sendEmail from "../utils/sendEmail.js"
 import jwt from "jsonwebtoken"
 
+dotenv.config()
 
 
 const genrateAccessAndRefreshToken = async (userId) => {
@@ -16,6 +18,7 @@ const genrateAccessAndRefreshToken = async (userId) => {
         }
         const accessToken = await user.genrateAccessToken()
         const refreshToken = await user.genrateRefreshToken()
+        user.refreshToken = refreshToken;
         await user.save({ validateBeforeSave: false })
         return { accessToken, refreshToken }
     } catch (error) {
@@ -102,6 +105,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
         }
 
         const user = await User.findOne({ email })
+        console.log("User found with emial in verifyEmail function::", user)
         if (!user) {
             throw new ApiError(400, "User not found")
         }
@@ -118,8 +122,6 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 
         const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
 
-        console.log("accessToken", accessToken)
-        console.log("refreshToken", refreshToken)
 
         const userData = {
             _id: user._id,
@@ -160,6 +162,7 @@ export const login = asyncHandler(async (req, res) => {
         }
 
         const user = await User.findOne({ email }).select("+password")
+        console.log("User found with emial and password in login function::", user)
         if (!user) {
             throw new ApiError(400, "Invalid email or password")
         }
@@ -175,6 +178,8 @@ export const login = asyncHandler(async (req, res) => {
         }
 
         const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id)
+
+        await user.save({ validateBeforeSave: false })
 
         const userData = {
             _id: user._id,
@@ -301,42 +306,46 @@ export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
 })
 
 export const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incommingRefreshToken = req.cookies?.refreshToken || req.headers?.authorization?.split(" ")[1]
+    const { refreshToken } = req.body; // Extract refreshToken from the request body
+    const incommingRefreshToken = req.cookies?.refreshToken || req.headers?.authorization?.split(" ")[1] || refreshToken; // Use the refreshToken from the body if not in cookies or headers
+    console.log("incommingRefreshToken", incommingRefreshToken);
     try {
-
         if (!incommingRefreshToken) {
-            throw new ApiError(400, "Please provide refresh token")
+            throw new ApiError(400, "Please provide refresh token");
         }
 
-        const decodedToken = await jwt.verify(incommingRefreshToken, process.env.JWT_REFRESH_SECRE)
+        const decodedToken = jwt.verify(incommingRefreshToken, process.env.JWT_REFRESH_SECRET);
+        console.log("Decoded token", decodedToken)
+
         if (!decodedToken) {
-            throw new ApiError(400, "Invalid refresh token")
+            throw new ApiError(400, "Invalid refresh token");
         }
-        const user = await User.findById(decodedToken?._id)
+        const user = await User.findById(decodedToken?.id);
         if (!user) {
-            throw new ApiError(400, "User not found")
+            throw new ApiError(400, "User not found");
         }
 
         if (user.refreshToken !== incommingRefreshToken) {
             throw new ApiError(401, "Refresh token is expired or used");
         }
 
-
-        const { accessToken } = await genrateAccessAndRefreshToken(user?._id)
+        const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user?._id);
         const userData = {
             _id: user._id,
             name: user.name,
             email: user.email,
             avatar: user.avatar,
-        }
+        };
         const cookieOptions = {
             httpOnly: true,
             secure: true,
             maxAge: 15 * 60 * 1000
-        }
-        res.cookie("accessToken", accessToken, cookieOptions)
-        return apiResponse(res, { statusCode: 200, data: userData, message: "Access token refreshed successfully" })
+        };
+        res.cookie("accessToken", accessToken, cookieOptions);
+        res.cookie("refreshToken", refreshToken, cookieOptions);
+        return apiResponse(res, { statusCode: 200, data: {userData, accessToken, refreshToken}, message: "Access token refreshed successfully" });
     } catch (error) {
-        throw new ApiError(500, error.message)
+        throw new ApiError(500, error.message);
     }
-})
+});
+
