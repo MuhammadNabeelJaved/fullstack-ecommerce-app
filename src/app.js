@@ -1,5 +1,5 @@
 import dotenv, { parse } from "dotenv";
-import express from "express";
+import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import bodyParser from "body-parser";
@@ -17,6 +17,8 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true
 }))
+// origin: process.env.CORS_ORIGIN,
+// credentials: true
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded())
 // parse application/json

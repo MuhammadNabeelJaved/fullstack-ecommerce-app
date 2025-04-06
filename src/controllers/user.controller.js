@@ -25,6 +25,7 @@ const genrateAccessAndRefreshToken = async (userId) => {
 export const register = asyncHandler(async (req, res) => {
     try {
         const { name, email, password } = req.body
+        console.log("User data is:", name, email, password)
         const avatar = req.file?.path
 
         if (!name || !email || !password) {
@@ -136,7 +137,13 @@ export const verifyEmail = asyncHandler(async (req, res) => {
         res.cookie("accessToken", accessToken, cookieOptions);
         res.cookie("refreshToken", refreshToken, cookieOptions);
 
-        return apiResponse(res, { statusCode: 200, data: userData, message: "User verified successfully" });
+        return apiResponse(res, {
+            statusCode: 200, data: {
+                userData,
+                accessToken,
+                refreshToken
+            }, message: "User verified successfully"
+        });
     } catch (error) {
         throw new ApiError(500, error.message)
     }
@@ -184,7 +191,7 @@ export const login = asyncHandler(async (req, res) => {
         res.cookie("accessToken", accessToken, cookieOptions)
         res.cookie("refreshToken", refreshToken, cookieOptions)
 
-        return apiResponse(res, { statusCode: 200, data: userData, message: "User logged in successfully" })
+        return apiResponse(res, { statusCode: 200, data: {userData, accessToken, refreshToken}, message: "User logged in successfully" })
     } catch (error) {
         throw new ApiError(500, error.message)
     }
