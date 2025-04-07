@@ -305,52 +305,92 @@ export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
     return apiResponse(res, { statusCode: 200, data: userData, message: "User avatar updated successfully" })
 })
 
+// Server-side token refresh handler (controllers/auth.controller.js)
+
 export const refreshAccessToken = asyncHandler(async (req, res) => {
-    const { refreshToken } = req.body; // Extract refreshToken from the request body
-    const incommingRefreshToken = req.cookies?.refreshToken || req.headers?.authorization?.split(" ")[1] || refreshToken; // Use the refreshToken from the body if not in cookies or headers
-    console.log("incommingRefreshToken", incommingRefreshToken);
+    // Extract refresh token with proper fallbacks
+    const refreshToken = 
+        req.body?.refreshToken || 
+        req.cookies?.refreshToken || 
+        (req.headers?.authorization?.startsWith('Bearer ') && req.headers.authorization.split(" ")[1]);
+    
+    console.log("Refresh token request received:", !!refreshToken);
+    
     try {
-        if (!incommingRefreshToken) {
-            throw new ApiError(400, "Please provide refresh token");
+        // Validate token existence
+        if (!refreshToken) {
+            return res.status(400).json({
+                success: false,
+                message: "Refresh token is required"
+            });
         }
 
-        const decodedToken = jwt.verify(incommingRefreshToken, process.env.JWT_REFRESH_SECRET);
-        console.log("Decoded token", decodedToken)
-
-        if (!decodedToken) {
-            throw new ApiError(400, "Invalid refresh token");
+        // Verify the token
+        let decodedToken;
+        try {
+            decodedToken = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        } catch (verifyError) {
+            console.error("Token verification failed:", verifyError);
+            return res.status(401).json({
+                success: false,
+                message: "Invalid or expired refresh token"
+            });
         }
+
+        // Find user with the decoded ID
         const user = await User.findById(decodedToken?.id);
         if (!user) {
-            throw new ApiError(400, "User not found");
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
         }
 
-        if (user.refreshToken !== incommingRefreshToken) {
-            throw new ApiError(401, "Refresh token is expired or used");
+        // Check if the token matches the stored refresh token
+        if (user.refreshToken !== refreshToken) {
+            return res.status(401).json({
+                success: false,
+                message: "Refresh token is expired or used"
+            });
         }
 
-        const { accessToken, refreshToken: newRefreshToken } = await genrateAccessAndRefreshToken(user?._id);
+        // Generate new tokens
+        const { accessToken, refreshToken: newRefreshToken } = await genrateAccessAndRefreshToken(user._id);
+        
+        // Prepare user data
         const userData = {
             _id: user._id,
             name: user.name,
             email: user.email,
             avatar: user.avatar,
         };
+        
+        // Set cookies
         const cookieOptions = {
             httpOnly: true,
-            secure: true,
-            maxAge: 15 * 60 * 1000
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 15 * 24 * 60 * 60 * 1000 // 15 days
         };
+        
         res.cookie("accessToken", accessToken, cookieOptions);
-        res.cookie("refreshToken", refreshToken, cookieOptions);
-        return apiResponse(res, {
-            statusCode: 200, data: {
-                userData, accessToken,
-                refreshToken,
-            }, message: "Access token refreshed successfully"
+        res.cookie("refreshToken", newRefreshToken, cookieOptions);
+        
+        // Return success response
+        return res.status(200).json({
+            success: true,
+            data: {
+                userData,
+                accessToken,
+                refreshToken: newRefreshToken
+            },
+            message: "Access token refreshed successfully"
         });
     } catch (error) {
-        throw new ApiError(500, error.message);
+        console.error("Token refresh error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Internal server error"
+        });
     }
 });
 
