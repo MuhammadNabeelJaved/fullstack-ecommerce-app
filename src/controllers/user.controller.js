@@ -308,89 +308,48 @@ export const updateCurrentUserAvatar = asyncHandler(async (req, res) => {
 // Server-side token refresh handler (controllers/auth.controller.js)
 
 export const refreshAccessToken = asyncHandler(async (req, res) => {
-    // Extract refresh token with proper fallbacks
-    const refreshToken = 
-        req.body?.refreshToken || 
-        req.cookies?.refreshToken || 
-        (req.headers?.authorization?.startsWith('Bearer ') && req.headers.authorization.split(" ")[1]);
-    
-    console.log("Refresh token request received:", !!refreshToken);
-    
-    try {
-        // Validate token existence
-        if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                message: "Refresh token is required"
-            });
-        }
-
-        // Verify the token
-        let decodedToken;
-        try {
-            decodedToken = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-        } catch (verifyError) {
-            console.error("Token verification failed:", verifyError);
-            return res.status(401).json({
-                success: false,
-                message: "Invalid or expired refresh token"
-            });
-        }
-
-        // Find user with the decoded ID
-        const user = await User.findById(decodedToken?.id);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
-        }
-
-        // Check if the token matches the stored refresh token
-        if (user.refreshToken !== refreshToken) {
-            return res.status(401).json({
-                success: false,
-                message: "Refresh token is expired or used"
-            });
-        }
-
-        // Generate new tokens
-        const { accessToken, refreshToken: newRefreshToken } = await genrateAccessAndRefreshToken(user._id);
-        
-        // Prepare user data
-        const userData = {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            avatar: user.avatar,
-        };
-        
-        // Set cookies
-        const cookieOptions = {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 15 * 24 * 60 * 60 * 1000 // 15 days
-        };
-        
-        res.cookie("accessToken", accessToken, cookieOptions);
-        res.cookie("refreshToken", newRefreshToken, cookieOptions);
-        
-        // Return success response
-        return res.status(200).json({
-            success: true,
-            data: {
-                userData,
-                accessToken,
-                refreshToken: newRefreshToken
-            },
-            message: "Access token refreshed successfully"
-        });
-    } catch (error) {
-        console.error("Token refresh error:", error);
-        return res.status(500).json({
-            success: false,
-            message: error.message || "Internal server error"
-        });
+    const incomingToken = req.cookies.refreshToken || req.headers["x-refresh-token"] || req.body.refreshToken || req.query.refreshToken;
+  
+    console.log("Incoming token:", incomingToken);
+  
+    if (!incomingToken) {
+      throw new ApiError(401, "Refresh token is required");
     }
-});
+  
+    const decoded = jwt.verify(incomingToken, process.env.JWT_REFRESH_SECRET);
+    if (!decoded) {
+      throw new ApiError(401, "Invalid refresh token 1");
+    }
+  
+    const user = await User.findOne({ _id: decoded.id });
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+  
+    console.log("User found:", user);
+  
+    // if (user.refreshToken !== incomingToken) {
+    //   throw new ApiError(401, "Invalid refresh token 2");
+    // }
+  
+    const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(user._id);
+    if (!accessToken || !refreshToken) {
+      throw new ApiError(500, "Failed to generate tokens");
+    }
+
+    console.log("Access token:", accessToken);
+    console.log("Refresh token:", refreshToken);
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+  
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+    res.cookie("refreshToken", refreshToken, options);
+    res.cookie("accessToken", accessToken, options);
+  
+    return apiResponse(res, { statusCode: 200, data: {user, accessToken, refreshToken}, message: "Token refreshed successfully" }, accessToken, refreshToken);
+  });
+
 
