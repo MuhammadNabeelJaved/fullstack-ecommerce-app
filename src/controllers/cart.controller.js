@@ -21,6 +21,9 @@ export const addToCart = asyncHandler(async (req, res) => {
         const quantity = parseInt(req.body.quantity, 10);
         const user = req.user;
 
+        console.log("Product ID", productId);
+        console.log("Quantity", quantity);
+
         // --- Basic Validations ---
         if (!productId || isNaN(quantity)) {
             throw new ApiError(400, "Product ID and a valid quantity are required");
