@@ -9,32 +9,35 @@ import Cloudinary from "../utils/Cloudinary.js";
 
 export const createProduct = asyncHandler(async (req, res) => {
     const { name, description, price, category, stock } = req.body;
+    console.log("Body Data", req.body);
     try {
         // const images = req.files.map(file => file.path);
         const image = req?.file?.path;
 
+        console.log("Image Data", image);
+
 
         if (!image) {
-            throw new ApiError("At least one image is required", 400);
+            throw new ApiError(400,"At least one image is required");
         }
 
 
         if (!name || !description || !price || !category || !stock) {
-            throw new ApiError("All fields are required", 400);
+            throw new ApiError(400,"All fields are required");
         }
 
         if (price <= 0 || stock < 0) {
-            throw new ApiError("Price and stock must be positive", 400);
+            throw new ApiError(400,"Price and stock must be positive");
         }
 
         if (category !== "electronics" && category !== "fashion" && category !== "home" && category !== "sports" && category !== "books" && category !== "other") {
-            throw new ApiError("Invalid category", 400);
+            throw new ApiError(400,"Invalid category" );
         }
 
         const uploadedImages = await Cloudinary.uploadImage(image);
 
         if (!uploadedImages) {
-            throw new ApiError("Failed to upload images to cloudinary", 500);
+            throw new ApiError(500,"Failed to upload images to cloudinary");
         }
 
 
@@ -50,7 +53,7 @@ export const createProduct = asyncHandler(async (req, res) => {
         const product = await Product.create(productData);
 
         if (!product) {
-            throw new ApiError("Failed to create product", 500);
+            throw new ApiError(500,"Failed to create product");
         }
 
         return apiResponse(res, { statusCode: 201, message: "Product created successfully", data: product });
