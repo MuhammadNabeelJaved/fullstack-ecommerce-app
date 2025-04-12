@@ -22,12 +22,11 @@ app.use(cors({
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded())
 // parse application/json
-app.use(bodyParser.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(bodyParser.json({ limit: '50mb' }))
 app.use(cookieParser())
-app.use(express.json({
-    limit: "15kb"
-}))
+// Increase the payload size limit (e.g., to 50MB)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use("/api/v1/users", userRoutes)
 app.use("/api/v1/cart", cartRoutes)

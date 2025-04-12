@@ -11,7 +11,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     const { name, description, price, category, stock } = req.body;
     try {
         // const images = req.files.map(file => file.path);
-        const image = req.file.path;
+        const image = req?.file?.path;
 
 
         if (!image) {

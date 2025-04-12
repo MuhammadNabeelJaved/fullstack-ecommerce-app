@@ -24,9 +24,10 @@ export const isAuthenticated = async (req, res, next) => {
     }
 }
 
-// export const isAdmin = async (req, res, next) => {
-//     if (req.user.role !== "admin") {
-//         throw new ApiError(401, "You are not authorized to access this resource")
-//     }
-//     next()
-// }
+export const isAdmin = async (req, res, next) => {
+    if (req.user.role !== "admin") {
+        throw new ApiError(401, "You are not authorized to access this resource")
+    }
+
+    next()
+}
