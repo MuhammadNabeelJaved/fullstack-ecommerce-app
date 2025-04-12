@@ -168,22 +168,15 @@ export const deleteProduct = asyncHandler(async (req, res) => {
                 const publicId = image.public_id;
                 if (publicId) {
                     console.log("Deleting image with public_id:", publicId);
-                    await Cloudinary.deleteImage(publicId); // Pass a single public_id, not an array
+                    const deletedImages = await Cloudinary.deleteImage(publicId); // Pass a single public_id, not an array
+                    if (!deletedImages) {
+                        throw new ApiError("Failed to delete images from cloudinary", 500);
+                    }
                 }
             }
         }
 
-
-
         // const deletedImages = await Cloudinary.deleteImage(image);
-
-
-
-
-
-        // if (!deletedImages) {
-        //     throw new ApiError("Failed to delete images from cloudinary", 500);
-        // }
 
         await product.deleteOne();
 
