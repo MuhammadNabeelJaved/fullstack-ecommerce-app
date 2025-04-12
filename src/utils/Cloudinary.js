@@ -28,6 +28,7 @@ const uploadImage = async (image) => {
 }
 
 const deleteImage = async (imageUrl) => {
+    console.log("Image URL", imageUrl)
     try {
         if (!imageUrl) {
             throw new ApiError(400, "Image URL is required")

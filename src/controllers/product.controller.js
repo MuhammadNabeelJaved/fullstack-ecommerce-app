@@ -18,26 +18,26 @@ export const createProduct = asyncHandler(async (req, res) => {
 
 
         if (!image) {
-            throw new ApiError(400,"At least one image is required");
+            throw new ApiError(400, "At least one image is required");
         }
 
 
         if (!name || !description || !price || !category || !stock) {
-            throw new ApiError(400,"All fields are required");
+            throw new ApiError(400, "All fields are required");
         }
 
         if (price <= 0 || stock < 0) {
-            throw new ApiError(400,"Price and stock must be positive");
+            throw new ApiError(400, "Price and stock must be positive");
         }
 
         if (category !== "electronics" && category !== "fashion" && category !== "home" && category !== "sports" && category !== "books" && category !== "other") {
-            throw new ApiError(400,"Invalid category" );
+            throw new ApiError(400, "Invalid category");
         }
 
         const uploadedImages = await Cloudinary.uploadImage(image);
 
         if (!uploadedImages) {
-            throw new ApiError(500,"Failed to upload images to cloudinary");
+            throw new ApiError(500, "Failed to upload images to cloudinary");
         }
 
 
@@ -53,7 +53,7 @@ export const createProduct = asyncHandler(async (req, res) => {
         const product = await Product.create(productData);
 
         if (!product) {
-            throw new ApiError(500,"Failed to create product");
+            throw new ApiError(500, "Failed to create product");
         }
 
         return apiResponse(res, { statusCode: 201, message: "Product created successfully", data: product });
@@ -162,10 +162,28 @@ export const deleteProduct = asyncHandler(async (req, res) => {
             throw new ApiError("Product not found", 404);
         }
 
-        const deletedImages = await Cloudinary.deleteImage(product.images);
-        if (!deletedImages) {
-            throw new ApiError("Failed to delete images from cloudinary", 500);
+        if (product.images && Array.isArray(product.images)) {
+            // Loop through each image and delete them one by one
+            for (const image of product.images) {
+                const publicId = image.public_id;
+                if (publicId) {
+                    console.log("Deleting image with public_id:", publicId);
+                    await Cloudinary.deleteImage(publicId); // Pass a single public_id, not an array
+                }
+            }
         }
+
+
+
+        // const deletedImages = await Cloudinary.deleteImage(image);
+
+
+
+
+
+        // if (!deletedImages) {
+        //     throw new ApiError("Failed to delete images from cloudinary", 500);
+        // }
 
         await product.deleteOne();
 
