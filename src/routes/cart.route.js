@@ -5,7 +5,7 @@ import upload from "../utils/multer.js";
 
 const router = Router();
 
-router.route("/add-to-cart").post(isAuthenticated, upload.single("image"), addToCart);
+router.route("/add-to-cart").post(upload.single("image"), addToCart);
 router.route("/cart-items").get(isAuthenticated, getCartItems);
 router.route("/update-cart-item-quantity").put(isAuthenticated, upload.single("image"), updateCartItemQuantity);
 router.route("/remove-cart-item/:itemId").delete(isAuthenticated, removeCartItem);

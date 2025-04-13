@@ -21,7 +21,7 @@ export const addToCart = asyncHandler(async (req, res) => {
         const quantity = parseInt(req.body.quantity, 10);
         const user = req.user;
 
-        console.log("Product ID", productId);
+        console.log("Product ID", req.body);
         console.log("Quantity", quantity);
 
         // --- Basic Validations ---
