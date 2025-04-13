@@ -14,11 +14,15 @@ export const createProduct = asyncHandler(async (req, res) => {
         // const images = req.files.map(file => file.path);
         const image = req?.file?.path;
 
-        console.log("Image Data", image);
+        console.log("Image Data", req?.file, image);
 
 
         if (!image) {
             throw new ApiError(400, "At least one image is required");
+        }
+
+        if (image.size > 5000000) {
+            throw new ApiError(400, "Image size should be less than 5MB");
         }
 
 
