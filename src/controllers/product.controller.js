@@ -21,8 +21,11 @@ export const createProduct = asyncHandler(async (req, res) => {
             throw new ApiError(400, "At least one image is required");
         }
 
-        if (image.size > 5000000) {
-            throw new ApiError(400, "Image size should be less than 5MB");
+        if (req?.file?.size > 5000000 || image.size > 5000000) {
+            return res.status(400).json({
+                success: false,
+                message: "Image size should be less than 5MB"
+            });
         }
 
 
