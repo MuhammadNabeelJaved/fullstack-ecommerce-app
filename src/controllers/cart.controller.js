@@ -232,11 +232,11 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
         }
 
         const updatedItem = await CartProduct.findByIdAndUpdate(
-            itemId, 
-            { 
+            itemId,
+            {
                 quantity,
-                itemTotalPrice: itemExists.price * quantity 
-            }, 
+                itemTotalPrice: itemExists.price * quantity
+            },
             { new: true }
         );
 
@@ -245,7 +245,7 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
         if (!updatedItem) {
             throw new ApiError(404, "Item not found");
         }
-        
+
         const newTotalPrice = await recalculateCartTotal(cart?._id);
 
         return apiResponse(res, { statusCode: 200, message: "Cart item quantity updated", data: updatedItem });
