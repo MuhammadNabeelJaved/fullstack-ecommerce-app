@@ -21,8 +21,10 @@ export const addToCart = asyncHandler(async (req, res) => {
         const quantity = parseInt(req.body.quantity, 10);
         const user = req.user;
 
-        console.log("Product ID", req.body);
+        console.log("Body Data", req.body);
+        console.log("Product ID", productId);
         console.log("Quantity", quantity);
+        console.log("User", user);
 
         // --- Basic Validations ---
         if (!productId || isNaN(quantity)) {

@@ -4,7 +4,9 @@ import { ApiError } from "../utils/apiErrors.js"
 
 export const isAuthenticated = async (req, res, next) => {
     try {
-        const { accessToken, refreshToken } = req.cookies || req.headers.authorization.split(" ")[1] || req.body.accessToken || req.body
+        const { accessToken, refreshToken } = req.cookies || req.headers.authorization.split(" ")[1]
+        console.log("auth Access Token:", accessToken)
+        console.log("auth Refresh Token:", refreshToken)
         if (!accessToken && !refreshToken) {
             throw new ApiError(401, "Please login to access this page")
         }
